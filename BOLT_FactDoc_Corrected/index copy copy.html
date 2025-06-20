@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Affordact - Vérification Document IA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Vérification de document intelligente</h1>
+    <input type="file" id="upload" accept="image/*"/>
+    <select id="document-type">
+      <option value="">Choisir un type de document</option>
+      <option value="id">Carte d'identité</option>
+      <option value="pay">Fiche de paie</option>
+      <option value="deed">Acte notarié</option>
+      <option value="tax">Déclaration fiscale</option>
+    </select>
+    <button id="analyze">Analyser</button>
+    <div id="output">
+      <p><strong>Résultat :</strong></p>
+      <div id="results">Aucun document analysé.</div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers"></script>
+  <script src="script.js"></script>
+</body>
+</html>

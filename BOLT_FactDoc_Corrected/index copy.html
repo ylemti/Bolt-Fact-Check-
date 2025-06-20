@@ -1,0 +1,27 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Affordact Document Check</title>
+</head>
+<body style="font-family: Arial, sans-serif;">
+  <h1>📄 Analyse Affordact d’un document</h1>
+  <p>Ce module permet de tester une image de document, de sélectionner son type, de déclencher une analyse IA/OCR et de générer un rapport PDF.</p>
+  <form>
+    <input type="file" accept="image/*"><br><br>
+    <label for="docType">Type de document :</label>
+    <select id="docType">
+      <option value="id">Carte d'identité</option>
+      <option value="title">Titre de propriété</option>
+      <option value="salary">Fiche de paie</option>
+      <option value="rental">Bail locatif</option>
+      <option value="bank">Relevé bancaire</option>
+      <option value="tax">Avertissement extrait de rôle</option>
+    </select><br><br>
+    <input type="submit" value="Lancer l’analyse">
+  </form>
+  <br>
+  <a href="rapport_affordact_final_reportlab.pdf" target="_blank">📥 Télécharger le rapport PDF généré</a>
+</body>
+</html>

@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affordact - Prototype d'Analyse de Documents</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      color: white;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .main-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .form-section {
+      margin-bottom: 30px;
+    }
+
+    .form-section h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #4a5568;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-upload-area {
+      border: 3px dashed #cbd5e0;
+      border-radius: 16px;
+      padding: 40px 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .file-upload-area:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .file-upload-area.dragover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      transform: scale(1.02);
+    }
+
+    .file-upload-content {
+      pointer-events: none;
+    }
+
+    .upload-icon {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      color: #667eea;
+    }
+
+    .upload-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 8px;
+    }
+
+    .upload-subtext {
+      color: #718096;
+      font-size: 0.9rem;
+    }
+
+    #fileInput {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .preview-container {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      border: 3px solid white;
+    }
+
+    .file-info {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f7fafc;
+      border-radius: 12px;
+      border-left: 4px solid #667eea;
+    }
+
+    .select-wrapper {
+      position: relative;
+    }
+
+    select {
+      width: 100%;
+      padding: 15px 20px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 12px center;
+      background-repeat: no-repeat;
+      background-size: 16px;
+      padding-right: 50px;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .analyze-button {
+      width: 100%;
+      padding: 18px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .analyze-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+    }
+
+    .analyze-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .results-section {
+      margin-top: 30px;
+      padding: 25px;
+      background: #f8fafc;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .result-item {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .result-label {
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-value {
+      color: #2d3748;
+      font-size: 0.95rem;
+    }
+
+    .confidence-bar {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #48bb78, #38a169);
+      border-radius: 4px;
+      transition: width 0.8s ease;
+    }
+
+    .download-section {
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    .download-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 30px;
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 20px rgba(72, 187, 120, 0.3);
+    }
+
+    .download-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .status-success {
+      background: #f0fff4;
+      color: #22543d;
+      border: 1px solid #9ae6b4;
+    }
+
+    .status-warning {
+      background: #fffbf0;
+      color: #744210;
+      border: 1px solid #f6e05e;
+    }
+
+    .status-error {
+      background: #fff5f5;
+      color: #742a2a;
+      border: 1px solid #feb2b2;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 15px;
+      }
+
+      .main-card {
+        padding: 25px;
+        border-radius: 16px;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+      }
+
+      .file-upload-area {
+        padding: 30px 15px;
+      }
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 15px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .analysis-steps {
+      margin-top: 20px;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      color: #718096;
+      transition: color 0.3s ease;
+    }
+
+    .step.active {
+      color: #667eea;
+      font-weight: 600;
+    }
+
+    .step.completed {
+      color: #48bb78;
+    }
+
+    .step-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .step.completed .step-icon {
+      background: #48bb78;
+      border-color: #48bb78;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📄 Affordact - Analyse de Documents</h1>
+      <p>Prototype d'analyse intelligente de documents avec IA et OCR. Téléchargez votre document, sélectionnez son type et obtenez une analyse détaillée avec rapport PDF.</p>
+    </div>
+
+    <div class="main-card">
+      <form id="analysisForm">
+        <div class="form-section">
+          <h3>📤 Téléchargement du document</h3>
+          <div class="file-upload-area" id="fileUploadArea">
+            <input type="file" id="fileInput" accept="image/*,.pdf" />
+            <div class="file-upload-content">
+              <div class="upload-icon">📁</div>
+              <div class="upload-text">Cliquez ou glissez votre document ici</div>
+              <div class="upload-subtext">Formats supportés: JPG, PNG, PDF (max 10MB)</div>
+            </div>
+          </div>
+          <div id="previewContainer" class="preview-container hidden">
+            <img id="previewImage" class="preview-image" alt="Aperçu du document" />
+            <div id="fileInfo" class="file-info"></div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>📋 Type de document</h3>
+          <div class="select-wrapper">
+            <select id="docType" required>
+              <option value="">Sélectionnez le type de document</option>
+              <option value="id">Carte d'identité</option>
+              <option value="passport">Passeport</option>
+              <option value="title">Titre de propriété</option>
+              <option value="salary">Fiche de paie</option>
+              <option value="rental">Bail locatif</option>
+              <option value="bank">Relevé bancaire</option>
+              <option value="tax">Avertissement extrait de rôle</option>
+              <option value="insurance">Attestation d'assurance</option>
+              <option value="utility">Facture de services publics</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" id="analyzeButton" class="analyze-button" disabled>
+          <span id="buttonText">🔍 Lancer l'analyse</span>
+        </button>
+
+        <div id="analysisProgress" class="hidden">
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <div class="analysis-steps">
+            <div class="step" id="step1">
+              <div class="step-icon">1</div>
+              <span>Traitement de l'image</span>
+            </div>
+            <div class="step" id="step2">
+              <div class="step-icon">2</div>
+              <span>Extraction du texte (OCR)</span>
+            </div>
+            <div class="step" id="step3">
+              <div class="step-icon">3</div>
+              <span>Analyse IA</span>
+            </div>
+            <div class="step" id="step4">
+              <div class="step-icon">4</div>
+              <span>Génération du rapport</span>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <div id="resultsSection" class="results-section hidden">
+        <h3>📊 Résultats de l'analyse</h3>
+        
+        <div class="result-item">
+          <div class="result-label">
+            🎯 Statut de l'analyse
+          </div>
+          <div id="analysisStatus" class="result-value"></div>
+        </div>
+
+        <div class="result-item">
+          <div class="result-label">
+            📝 Texte extrait
+          </div>
+          <div id="extractedText" class="result-value"></div>
+        </div>
+
+        <div class="result-item">
+          <div class="result-label">
+            🤖 Confiance IA
+          </div>
+          <div id="confidenceScore" class="result-value"></div>
+          <div class="confidence-bar">
+            <div id="confidenceFill" class="confidence-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="result-item">
+          <div class="result-label">
+            ⚠️ Anomalies détectées
+          </div>
+          <div id="anomalies" class="result-value"></div>
+        </div>
+      </div>
+
+      <div id="downloadSection" class="download-section hidden">
+        <a href="#" id="downloadButton" class="download-button">
+          📥 Télécharger le rapport PDF
+        </a>
+        <p style="margin-top: 15px; color: #718096; font-size: 0.9rem;">
+          Le rapport contient tous les détails de l'analyse effectuée
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedFile = null;
+    let analysisResults = null;
+
+    // DOM Elements
+    const fileInput = document.getElementById('fileInput');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewImage = document.getElementById('previewImage');
+    const fileInfo = document.getElementById('fileInfo');
+    const docTypeSelect = document.getElementById('docType');
+    const analyzeButton = document.getElementById('analyzeButton');
+    const buttonText = document.getElementById('buttonText');
+    const analysisProgress = document.getElementById('analysisProgress');
+    const progressFill = document.getElementById('progressFill');
+    const resultsSection = document.getElementById('resultsSection');
+    const downloadSection = document.getElementById('downloadSection');
+    const downloadButton = document.getElementById('downloadButton');
+
+    // File upload handling
+    fileInput.addEventListener('change', handleFileSelect);
+    fileUploadArea.addEventListener('dragover', handleDragOver);
+    fileUploadArea.addEventListener('dragleave', handleDragLeave);
+    fileUploadArea.addEventListener('drop', handleFileDrop);
+
+    // Form submission
+    document.getElementById('analysisForm').addEventListener('submit', handleAnalysis);
+
+    // Document type selection
+    docTypeSelect.addEventListener('change', updateAnalyzeButton);
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        processFile(file);
+      }
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      fileUploadArea.classList.add('dragover');
+    }
+
+    function handleDragLeave(event) {
+      event.preventDefault();
+      fileUploadArea.classList.remove('dragover');
+    }
+
+    function handleFileDrop(event) {
+      event.preventDefault();
+      fileUploadArea.classList.remove('dragover');
+      
+      const files = event.dataTransfer.files;
+      if (files.length > 0) {
+        processFile(files[0]);
+      }
+    }
+
+    function processFile(file) {
+      // Validate file type and size
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+      const maxSize = 10 * 1024 * 1024; // 10MB
+
+      if (!validTypes.includes(file.type)) {
+        alert('Type de fichier non supporté. Veuillez utiliser JPG, PNG, GIF ou PDF.');
+        return;
+      }
+
+      if (file.size > maxSize) {
+        alert('Le fichier est trop volumineux. Taille maximale: 10MB.');
+        return;
+      }
+
+      selectedFile = file;
+
+      // Show preview for images
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewImage.src = e.target.result;
+          previewContainer.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        previewContainer.classList.remove('hidden');
+        previewImage.style.display = 'none';
+      }
+
+      // Show file info
+      fileInfo.innerHTML = `
+        <strong>📄 ${file.name}</strong><br>
+        <span style="color: #718096;">Taille: ${formatFileSize(file.size)} • Type: ${file.type}</span>
+      `;
+
+      updateAnalyzeButton();
+    }
+
+    function updateAnalyzeButton() {
+      const hasFile = selectedFile !== null;
+      const hasDocType = docTypeSelect.value !== '';
+      
+      analyzeButton.disabled = !(hasFile && hasDocType);
+    }
+
+    async function handleAnalysis(event) {
+      event.preventDefault();
+      
+      if (!selectedFile || !docTypeSelect.value) {
+        alert('Veuillez sélectionner un fichier et un type de document.');
+        return;
+      }
+
+      // Start analysis
+      analyzeButton.disabled = true;
+      buttonText.innerHTML = '<div class="loading-spinner"></div>Analyse en cours...';
+      analysisProgress.classList.remove('hidden');
+      resultsSection.classList.add('hidden');
+      downloadSection.classList.add('hidden');
+
+      try {
+        await simulateAnalysis();
+      } catch (error) {
+        console.error('Erreur lors de l\'analyse:', error);
+        alert('Une erreur est survenue lors de l\'analyse. Veuillez réessayer.');
+      } finally {
+        // Reset button
+        analyzeButton.disabled = false;
+        buttonText.innerHTML = '🔍 Lancer l\'analyse';
+        analysisProgress.classList.add('hidden');
+      }
+    }
+
+    async function simulateAnalysis() {
+      const steps = ['step1', 'step2', 'step3', 'step4'];
+      const docTypes = {
+        'id': 'Carte d\'identité',
+        'passport': 'Passeport',
+        'title': 'Titre de propriété',
+        'salary': 'Fiche de paie',
+        'rental': 'Bail locatif',
+        'bank': 'Relevé bancaire',
+        'tax': 'Avertissement extrait de rôle',
+        'insurance': 'Attestation d\'assurance',
+        'utility': 'Facture de services publics'
+      };
+
+      // Simulate analysis steps
+      for (let i = 0; i < steps.length; i++) {
+        // Update progress
+        const progress = ((i + 1) / steps.length) * 100;
+        progressFill.style.width = `${progress}%`;
+
+        // Update step status
+        const currentStep = document.getElementById(steps[i]);
+        currentStep.classList.add('active');
+
+        // Simulate processing time
+        await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
+
+        // Complete step
+        currentStep.classList.remove('active');
+        currentStep.classList.add('completed');
+        currentStep.querySelector('.step-icon').innerHTML = '✓';
+      }
+
+      // Generate mock results
+      const confidence = 75 + Math.random() * 20; // 75-95%
+      const hasAnomalies = Math.random() > 0.7;
+      
+      analysisResults = {
+        documentType: docTypes[docTypeSelect.value],
+        confidence: Math.round(confidence),
+        extractedText: generateMockText(docTypeSelect.value),
+        anomalies: hasAnomalies ? generateMockAnomalies() : [],
+        timestamp: new Date().toISOString()
+      };
+
+      displayResults();
+    }
+
+    function displayResults() {
+      // Show results section
+      resultsSection.classList.remove('hidden');
+      downloadSection.classList.remove('hidden');
+
+      // Update status
+      const statusElement = document.getElementById('analysisStatus');
+      const confidence = analysisResults.confidence;
+      let statusClass, statusText, statusIcon;
+
+      if (confidence >= 85) {
+        statusClass = 'status-success';
+        statusText = 'Document authentique';
+        statusIcon = '✅';
+      } else if (confidence >= 70) {
+        statusClass = 'status-warning';
+        statusText = 'Document partiellement vérifié';
+        statusIcon = '⚠️';
+      } else {
+        statusClass = 'status-error';
+        statusText = 'Document suspect';
+        statusIcon = '❌';
+      }
+
+      statusElement.innerHTML = `<span class="status-indicator ${statusClass}">${statusIcon} ${statusText}</span>`;
+
+      // Update extracted text
+      document.getElementById('extractedText').textContent = analysisResults.extractedText;
+
+      // Update confidence score
+      document.getElementById('confidenceScore').textContent = `${analysisResults.confidence}%`;
+      document.getElementById('confidenceFill').style.width = `${analysisResults.confidence}%`;
+
+      // Update anomalies
+      const anomaliesElement = document.getElementById('anomalies');
+      if (analysisResults.anomalies.length > 0) {
+        anomaliesElement.innerHTML = analysisResults.anomalies.map(anomaly => 
+          `<div style="margin-bottom: 5px;">• ${anomaly}</div>`
+        ).join('');
+      } else {
+        anomaliesElement.innerHTML = '<span style="color: #48bb78;">Aucune anomalie détectée</span>';
+      }
+
+      // Setup download button
+      downloadButton.onclick = generatePDFReport;
+    }
+
+    function generateMockText(docType) {
+      const mockTexts = {
+        'id': 'RÉPUBLIQUE FRANÇAISE\nCARTE NATIONALE D\'IDENTITÉ\nNom: MARTIN\nPrénom: Jean\nNé(e) le: 15/03/1985\nÀ: PARIS (75)',
+        'passport': 'PASSEPORT\nRÉPUBLIQUE FRANÇAISE\nType: P\nCode pays: FRA\nN° passeport: 12AB34567\nNom: DUPONT\nPrénom: Marie',
+        'salary': 'BULLETIN DE PAIE\nPériode: Janvier 2024\nEmployé: MARTIN Jean\nSalaire brut: 3500.00 EUR\nCotisations: 850.00 EUR',
+        'bank': 'RELEVÉ DE COMPTE\nPériode: 01/01/2024 - 31/01/2024\nSolde initial: 2,450.00 EUR\nSolde final: 2,180.00 EUR',
+        'default': 'Texte extrait du document analysé. Contenu détecté par OCR avec une précision variable selon la qualité du document.'
+      };
+      
+      return mockTexts[docType] || mockTexts['default'];
+    }
+
+    function generateMockAnomalies() {
+      const possibleAnomalies = [
+        'Qualité d\'impression légèrement dégradée',
+        'Contraste insuffisant dans certaines zones',
+        'Léger flou détecté sur les bords',
+        'Filigrane partiellement visible',
+        'Éléments de sécurité difficiles à vérifier'
+      ];
+      
+      const numAnomalies = Math.floor(Math.random() * 3) + 1;
+      return possibleAnomalies.slice(0, numAnomalies);
+    }
+
+    function generatePDFReport() {
+      if (!analysisResults) return;
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('Rapport d\'Analyse Affordact', 20, 30);
+
+        // Document info
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Date d'analyse: ${new Date().toLocaleDateString('fr-FR')}`, 20, 45);
+        doc.text(`Type de document: ${analysisResults.documentType}`, 20, 55);
+        doc.text(`Score de confiance: ${analysisResults.confidence}%`, 20, 65);
+
+        // Extracted text section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Texte extrait:', 20, 85);
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        const splitText = doc.splitTextToSize(analysisResults.extractedText, 170);
+        doc.text(splitText, 20, 95);
+
+        // Anomalies section
+        let yPosition = 95 + (splitText.length * 5) + 20;
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Anomalies détectées:', 20, yPosition);
+
+        yPosition += 10;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        
+        if (analysisResults.anomalies.length > 0) {
+          analysisResults.anomalies.forEach((anomaly, index) => {
+            doc.text(`• ${anomaly}`, 25, yPosition + (index * 8));
+          });
+        } else {
+          doc.text('Aucune anomalie détectée', 25, yPosition);
+        }
+
+        // Footer
+        yPosition += Math.max(analysisResults.anomalies.length * 8, 8) + 30;
+        doc.setFontSize(8);
+        doc.text('Rapport généré par Affordact - Système d\'analyse de documents', 20, yPosition);
+
+        // Save the PDF
+        doc.save('rapport_affordact_final_reportlab.pdf');
+      } catch (error) {
+        console.error('Erreur lors de la génération du PDF:', error);
+        alert('Erreur lors de la génération du PDF. Téléchargement du rapport de base...');
+        
+        // Fallback to existing PDF
+        const link = document.createElement('a');
+        link.href = '/rapport_affordact_final_reportlab.pdf';
+        link.download = 'rapport_affordact_final_reportlab.pdf';
+        link.click();
+      }
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Reset all steps
+    function resetSteps() {
+      const steps = ['step1', 'step2', 'step3', 'step4'];
+      steps.forEach(stepId => {
+        const step = document.getElementById(stepId);
+        step.classList.remove('active', 'completed');
+        step.querySelector('.step-icon').innerHTML = stepId.slice(-1);
+      });
+      progressFill.style.width = '0%';
+    }
+  </script>
+</body>
+</html>

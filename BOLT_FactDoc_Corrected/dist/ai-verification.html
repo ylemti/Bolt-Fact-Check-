@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affordact - Vérification Document IA</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      color: white;
+    }
+
+    .header h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .card h3 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #4a5568;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-upload-area {
+      border: 3px dashed #cbd5e0;
+      border-radius: 16px;
+      padding: 40px 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .file-upload-area:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .file-upload-area.dragover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      transform: scale(1.02);
+    }
+
+    .upload-icon {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      color: #667eea;
+    }
+
+    .upload-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 8px;
+    }
+
+    .upload-subtext {
+      color: #718096;
+      font-size: 0.9rem;
+    }
+
+    #imageUpload {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .preview-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      border: 3px solid white;
+    }
+
+    .select-wrapper {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    select {
+      width: 100%;
+      padding: 15px 20px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 12px center;
+      background-repeat: no-repeat;
+      background-size: 16px;
+      padding-right: 50px;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .analyze-button {
+      width: 100%;
+      padding: 18px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .analyze-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+    }
+
+    .analyze-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .results-card {
+      grid-column: 1 / -1;
+      margin-top: 20px;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .result-item {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      border-left: 4px solid #667eea;
+    }
+
+    .result-label {
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-value {
+      color: #2d3748;
+      font-size: 1.1rem;
+    }
+
+    .confidence-display {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .confidence-bar {
+      flex: 1;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #48bb78, #38a169);
+      border-radius: 6px;
+      transition: width 0.8s ease;
+    }
+
+    .confidence-percentage {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #48bb78;
+    }
+
+    .reliability-stars {
+      display: flex;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .star {
+      font-size: 1.5rem;
+      color: #e2e8f0;
+      transition: all 0.3s ease;
+    }
+
+    .star.filled {
+      color: #ffd700;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .validation-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-top: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .badge-valid {
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white;
+    }
+
+    .badge-invalid {
+      background: linear-gradient(135deg, #f56565, #e53e3e);
+      color: white;
+    }
+
+    .badge-partial {
+      background: linear-gradient(135deg, #ed8936, #dd6b20);
+      color: white;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-top: 20px;
+    }
+
+    .analysis-details {
+      background: #f7fafc;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .detail-item:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-weight: 500;
+      color: #4a5568;
+    }
+
+    .detail-value {
+      font-weight: 600;
+      color: #2d3748;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .loading-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-content {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .loading-text {
+      margin-top: 20px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #4a5568;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .container {
+        padding: 15px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .header h1 {
+        font-size: 2.2rem;
+      }
+    }
+
+    .model-status {
+      background: #e6fffa;
+      border: 1px solid #81e6d9;
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      color: #234e52;
+    }
+
+    .model-status.loading {
+      background: #fef5e7;
+      border-color: #f6e05e;
+      color: #744210;
+    }
+
+    .model-status.ready {
+      background: #f0fff4;
+      border-color: #9ae6b4;
+      color: #22543d;
+    }
+
+    .document-type-info {
+      background: #f7fafc;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      border-left: 4px solid #667eea;
+    }
+
+    .document-type-info h4 {
+      color: #4a5568;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .document-type-info p {
+      color: #718096;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .match-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px;
+      border-radius: 12px;
+      margin-top: 15px;
+      font-weight: 600;
+    }
+
+    .match-indicator.match {
+      background: #f0fff4;
+      border: 2px solid #9ae6b4;
+      color: #22543d;
+    }
+
+    .match-indicator.no-match {
+      background: #fff5f5;
+      border: 2px solid #feb2b2;
+      color: #742a2a;
+    }
+
+    .match-indicator.partial {
+      background: #fffbf0;
+      border: 2px solid #f6e05e;
+      color: #744210;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Chargement des modèles IA...</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1>🤖 Affordact - Vérification Document IA</h1>
+      <p>Analyse intelligente de documents avec Vision Transformer et classification visuelle. Sélectionnez le type attendu pour une vérification précise de la correspondance.</p>
+    </div>
+
+    <div class="main-grid">
+      <div class="card">
+        <h3>📤 Upload & Configuration</h3>
+        
+        <div id="modelStatus" class="model-status loading">
+          🔄 Chargement des modèles IA en cours...
+        </div>
+
+        <form id="docForm">
+          <div class="file-upload-area" id="fileUploadArea">
+            <input type="file" id="imageUpload" accept="image/*" required />
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Cliquez ou glissez votre document ici</div>
+            <div class="upload-subtext">Formats: JPG, PNG, GIF (max 5MB)</div>
+          </div>
+
+          <div id="previewContainer" class="preview-container hidden">
+            <img id="previewImage" class="preview-image" alt="Aperçu du document" />
+          </div>
+
+          <div class="select-wrapper">
+            <select id="docType" required>
+              <option value="">Sélectionnez le type attendu</option>
+              <option value="id">Carte d'identité</option>
+              <option value="passport">Passeport</option>
+              <option value="payslip">Fiche de paie</option>
+              <option value="deed">Acte notarié</option>
+              <option value="tax">Déclaration fiscale</option>
+              <option value="bank">Relevé bancaire</option>
+              <option value="insurance">Attestation d'assurance</option>
+              <option value="utility">Facture services publics</option>
+            </select>
+          </div>
+
+          <div id="documentTypeInfo" class="document-type-info hidden">
+            <h4>Type sélectionné</h4>
+            <p id="documentTypeDescription"></p>
+          </div>
+
+          <button type="submit" id="analyzeButton" class="analyze-button" disabled>
+            <span id="buttonText">🔍 Analyser avec IA</span>
+          </button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>📊 Analyse en Temps Réel</h3>
+        <div class="chart-container">
+          <canvas id="analysisChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card results-card hidden" id="resultsCard">
+      <h3>🎯 Résultats de l'Analyse</h3>
+      
+      <div class="results-grid">
+        <div class="result-item">
+          <div class="result-label">
+            🤖 Document Détecté
+          </div>
+          <div id="detectedDocument" class="result-value">-</div>
+          <div id="validationBadge"></div>
+        </div>
+
+        <div class="result-item">
+          <div class="result-label">
+            ⭐ Fiabilité Visuelle
+          </div>
+          <div id="reliabilityStars" class="reliability-stars">
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+          </div>
+          <div id="reliabilityText" class="result-value" style="margin-top: 10px;">-</div>
+        </div>
+
+        <div class="result-item">
+          <div class="result-label">
+            📈 Score de Confiance
+          </div>
+          <div class="confidence-display">
+            <div class="confidence-bar">
+              <div id="confidenceFill" class="confidence-fill" style="width: 0%"></div>
+            </div>
+            <div id="confidencePercentage" class="confidence-percentage">0%</div>
+          </div>
+        </div>
+
+        <div class="result-item">
+          <div class="result-label">
+            🎯 Correspondance Type
+          </div>
+          <div id="typeMatch" class="result-value">-</div>
+        </div>
+      </div>
+
+      <div id="matchIndicator" class="match-indicator hidden">
+        <span id="matchIcon"></span>
+        <span id="matchText"></span>
+      </div>
+
+      <div class="analysis-details">
+        <h4 style="margin-bottom: 15px; color: #4a5568;">📋 Détails de l'Analyse</h4>
+        <div class="detail-item">
+          <span class="detail-label">Modèle IA utilisé</span>
+          <span class="detail-value">Vision Transformer + MobileNet</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Temps d'analyse</span>
+          <span id="analysisTime" class="detail-value">-</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Taille de l'image</span>
+          <span id="imageSize" class="detail-value">-</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Prédictions alternatives</span>
+          <span id="alternativePredictions" class="detail-value">-</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let mobileNetModel;
+    let transformersModel;
+    let analysisChart;
+    let isModelLoaded = false;
+
+    // DOM Elements
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const modelStatus = document.getElementById('modelStatus');
+    const imageUpload = document.getElementById('imageUpload');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewImage = document.getElementById('previewImage');
+    const docTypeSelect = document.getElementById('docType');
+    const documentTypeInfo = document.getElementById('documentTypeInfo');
+    const documentTypeDescription = document.getElementById('documentTypeDescription');
+    const analyzeButton = document.getElementById('analyzeButton');
+    const buttonText = document.getElementById('buttonText');
+    const resultsCard = document.getElementById('resultsCard');
+
+    // Document type mappings and descriptions
+    const documentTypes = {
+      'id': {
+        keywords: ['identity', 'card', 'document', 'license', 'id', 'passport'],
+        description: 'Document d\'identité officiel avec photo et informations personnelles'
+      },
+      'passport': {
+        keywords: ['passport', 'travel', 'document', 'book', 'identity'],
+        description: 'Passeport pour voyages internationaux'
+      },
+      'payslip': {
+        keywords: ['document', 'paper', 'slip', 'payroll', 'salary', 'pay'],
+        description: 'Bulletin de salaire mensuel ou fiche de paie'
+      },
+      'deed': {
+        keywords: ['document', 'paper', 'certificate', 'deed', 'notarial'],
+        description: 'Acte notarié ou document juridique officiel'
+      },
+      'tax': {
+        keywords: ['document', 'paper', 'tax', 'declaration', 'fiscal'],
+        description: 'Déclaration fiscale ou document d\'impôts'
+      },
+      'bank': {
+        keywords: ['document', 'paper', 'statement', 'bank', 'account'],
+        description: 'Relevé bancaire ou document financier'
+      },
+      'insurance': {
+        keywords: ['document', 'paper', 'certificate', 'insurance', 'policy'],
+        description: 'Attestation d\'assurance ou police d\'assurance'
+      },
+      'utility': {
+        keywords: ['document', 'paper', 'bill', 'utility', 'invoice'],
+        description: 'Facture de services publics (électricité, gaz, eau)'
+      }
+    };
+
+    // Initialize
+    window.onload = async () => {
+      loadingOverlay.classList.add('active');
+      await loadModels();
+      setupEventListeners();
+      initializeChart();
+    };
+
+    async function loadModels() {
+      try {
+        // Load MobileNet for general classification
+        mobileNetModel = await mobilenet.load();
+        
+        // Load Vision Transformer for more detailed analysis
+        const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0');
+        transformersModel = await pipeline('image-classification', 'Xenova/vit-base-patch16-224');
+        
+        isModelLoaded = true;
+        modelStatus.textContent = '✅ Modèles IA prêts pour l\'analyse';
+        modelStatus.className = 'model-status ready';
+        loadingOverlay.classList.remove('active');
+        updateAnalyzeButton();
+        console.log("Modèles chargés avec succès");
+      } catch (error) {
+        console.error("Erreur lors du chargement des modèles:", error);
+        modelStatus.textContent = '❌ Erreur de chargement des modèles';
+        modelStatus.className = 'model-status error';
+        loadingOverlay.classList.remove('active');
+      }
+    }
+
+    function setupEventListeners() {
+      // File upload
+      imageUpload.addEventListener('change', handleFileSelect);
+      fileUploadArea.addEventListener('dragover', handleDragOver);
+      fileUploadArea.addEventListener('dragleave', handleDragLeave);
+      fileUploadArea.addEventListener('drop', handleFileDrop);
+
+      // Form submission
+      document.getElementById('docForm').addEventListener('submit', handleAnalysis);
+
+      // Document type selection
+      docTypeSelect.addEventListener('change', handleDocTypeChange);
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        processFile(file);
+      }
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      fileUploadArea.classList.add('dragover');
+    }
+
+    function handleDragLeave(event) {
+      event.preventDefault();
+      fileUploadArea.classList.remove('dragover');
+    }
+
+    function handleFileDrop(event) {
+      event.preventDefault();
+      fileUploadArea.classList.remove('dragover');
+      
+      const files = event.dataTransfer.files;
+      if (files.length > 0) {
+        processFile(files[0]);
+      }
+    }
+
+    function handleDocTypeChange() {
+      const selectedType = docTypeSelect.value;
+      if (selectedType && documentTypes[selectedType]) {
+        documentTypeInfo.classList.remove('hidden');
+        documentTypeDescription.textContent = documentTypes[selectedType].description;
+      } else {
+        documentTypeInfo.classList.add('hidden');
+      }
+      updateAnalyzeButton();
+    }
+
+    function processFile(file) {
+      // Validate file
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!validTypes.includes(file.type)) {
+        alert('Type de fichier non supporté. Utilisez JPG, PNG ou GIF.');
+        return;
+      }
+
+      if (file.size > maxSize) {
+        alert('Fichier trop volumineux. Taille maximale: 5MB.');
+        return;
+      }
+
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImage.src = e.target.result;
+        previewContainer.classList.remove('hidden');
+        updateAnalyzeButton();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateAnalyzeButton() {
+      const hasFile = imageUpload.files.length > 0;
+      const hasDocType = docTypeSelect.value !== '';
+      
+      analyzeButton.disabled = !(hasFile && hasDocType && isModelLoaded);
+    }
+
+    async function handleAnalysis(event) {
+      event.preventDefault();
+      
+      if (!mobileNetModel || !transformersModel || !imageUpload.files[0] || !docTypeSelect.value) {
+        alert('Veuillez sélectionner un fichier et un type de document.');
+        return;
+      }
+
+      const startTime = Date.now();
+      
+      // Update UI
+      analyzeButton.disabled = true;
+      buttonText.innerHTML = '<div class="loading-spinner"></div>Analyse en cours...';
+      resultsCard.classList.add('hidden');
+
+      try {
+        const file = imageUpload.files[0];
+        const img = new Image();
+        
+        img.onload = async () => {
+          try {
+            // Get predictions from both models
+            const mobileNetPredictions = await mobileNetModel.classify(img);
+            const transformerPredictions = await transformersModel(img);
+            
+            const analysisTime = Date.now() - startTime;
+            
+            // Process results
+            const topMobileNet = mobileNetPredictions[0];
+            const topTransformer = transformerPredictions[0];
+            
+            // Use the prediction with higher confidence
+            const bestPrediction = topMobileNet.probability > topTransformer.score ? 
+              { className: topMobileNet.className, confidence: topMobileNet.probability } :
+              { className: topTransformer.label, confidence: topTransformer.score };
+            
+            const confidence = Math.round(bestPrediction.confidence * 100);
+            const expectedType = docTypeSelect.value;
+            const matchResult = checkDocumentMatch(bestPrediction.className, expectedType);
+            
+            // Update results
+            displayResults({
+              detected: bestPrediction.className,
+              confidence: confidence,
+              matchResult: matchResult,
+              expectedType: expectedType,
+              analysisTime: analysisTime,
+              fileSize: formatFileSize(file.size),
+              alternatives: [
+                ...mobileNetPredictions.slice(1, 3).map(p => 
+                  `${p.className} (${Math.round(p.probability * 100)}%)`
+                ),
+                ...transformerPredictions.slice(1, 3).map(p => 
+                  `${p.label} (${Math.round(p.score * 100)}%)`
+                )
+              ].slice(0, 4).join(', ')
+            });
+
+            // Update chart with combined predictions
+            const combinedPredictions = [
+              ...mobileNetPredictions.slice(0, 3).map(p => ({
+                label: p.className,
+                value: Math.round(p.probability * 100)
+              })),
+              ...transformerPredictions.slice(0, 2).map(p => ({
+                label: p.label,
+                value: Math.round(p.score * 100)
+              }))
+            ].slice(0, 5);
+            
+            updateChart(combinedPredictions);
+            
+          } catch (error) {
+            console.error('Erreur lors de l\'analyse:', error);
+            alert('Erreur lors de l\'analyse. Veuillez réessayer.');
+          }
+        };
+        
+        img.src = URL.createObjectURL(file);
+        
+      } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de l\'analyse.');
+      } finally {
+        // Reset button
+        analyzeButton.disabled = false;
+        buttonText.innerHTML = '🔍 Analyser avec IA';
+        updateAnalyzeButton();
+      }
+    }
+
+    function checkDocumentMatch(prediction, expectedType) {
+      const keywords = documentTypes[expectedType]?.keywords || [];
+      const predictionLower = prediction.toLowerCase();
+      
+      // Check for exact matches
+      const exactMatch = keywords.some(keyword => 
+        predictionLower.includes(keyword) || 
+        keyword.includes(predictionLower.split(' ')[0])
+      );
+
+      // Check for partial matches
+      const partialMatch = keywords.some(keyword => {
+        const words = predictionLower.split(' ');
+        return words.some(word => word.includes(keyword.substring(0, 3)) || keyword.includes(word.substring(0, 3)));
+      });
+
+      if (exactMatch) return 'exact';
+      if (partialMatch) return 'partial';
+      return 'none';
+    }
+
+    function displayResults(results) {
+      // Show results card
+      resultsCard.classList.remove('hidden');
+      
+      // Update detected document
+      document.getElementById('detectedDocument').textContent = results.detected;
+      
+      // Update validation badge
+      const badgeContainer = document.getElementById('validationBadge');
+      let badgeClass, badgeText, badgeIcon;
+      
+      if (results.matchResult === 'exact' && results.confidence >= 70) {
+        badgeClass = 'badge-valid';
+        badgeText = 'Document Valide';
+        badgeIcon = '✅';
+      } else if (results.matchResult === 'partial' || results.confidence >= 50) {
+        badgeClass = 'badge-partial';
+        badgeText = 'Vérification Partielle';
+        badgeIcon = '⚠️';
+      } else {
+        badgeClass = 'badge-invalid';
+        badgeText = 'Document Non Reconnu';
+        badgeIcon = '❌';
+      }
+      
+      badgeContainer.innerHTML = `<div class="validation-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>`;
+      
+      // Update reliability stars
+      const stars = document.querySelectorAll('.star');
+      const starCount = Math.ceil(results.confidence / 20); // 0-100% to 0-5 stars
+      
+      stars.forEach((star, index) => {
+        if (index < starCount) {
+          star.classList.add('filled');
+        } else {
+          star.classList.remove('filled');
+        }
+      });
+      
+      // Update reliability text
+      let reliabilityText;
+      if (results.confidence >= 80) {
+        reliabilityText = 'Très Fiable';
+      } else if (results.confidence >= 60) {
+        reliabilityText = 'Fiable';
+      } else if (results.confidence >= 40) {
+        reliabilityText = 'Moyennement Fiable';
+      } else {
+        reliabilityText = 'Peu Fiable';
+      }
+      
+      document.getElementById('reliabilityText').textContent = reliabilityText;
+      
+      // Update confidence
+      document.getElementById('confidenceFill').style.width = `${results.confidence}%`;
+      document.getElementById('confidencePercentage').textContent = `${results.confidence}%`;
+      
+      // Update type match
+      const typeMatchElement = document.getElementById('typeMatch');
+      const matchIndicator = document.getElementById('matchIndicator');
+      const matchIcon = document.getElementById('matchIcon');
+      const matchText = document.getElementById('matchText');
+      
+      if (results.matchResult === 'exact') {
+        typeMatchElement.innerHTML = '<span style="color: #48bb78;">✅ Correspondance exacte</span>';
+        matchIndicator.className = 'match-indicator match';
+        matchIcon.textContent = '✅';
+        matchText.textContent = `Le document détecté correspond exactement au type attendu (${documentTypes[results.expectedType].description})`;
+      } else if (results.matchResult === 'partial') {
+        typeMatchElement.innerHTML = '<span style="color: #ed8936;">⚠️ Correspondance partielle</span>';
+        matchIndicator.className = 'match-indicator partial';
+        matchIcon.textContent = '⚠️';
+        matchText.textContent = `Le document détecté pourrait correspondre au type attendu, mais nécessite une vérification supplémentaire`;
+      } else {
+        typeMatchElement.innerHTML = '<span style="color: #f56565;">❌ Pas de correspondance</span>';
+        matchIndicator.className = 'match-indicator no-match';
+        matchIcon.textContent = '❌';
+        matchText.textContent = `Le document détecté ne correspond pas au type attendu (${documentTypes[results.expectedType].description})`;
+      }
+      
+      matchIndicator.classList.remove('hidden');
+      
+      // Update analysis details
+      document.getElementById('analysisTime').textContent = `${results.analysisTime}ms`;
+      document.getElementById('imageSize').textContent = results.fileSize;
+      document.getElementById('alternativePredictions').textContent = results.alternatives;
+    }
+
+    function initializeChart() {
+      const ctx = document.getElementById('analysisChart').getContext('2d');
+      analysisChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['En attente d\'analyse'],
+          datasets: [{
+            data: [100],
+            backgroundColor: ['#e2e8f0'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                padding: 20,
+                usePointStyle: true
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChart(predictions) {
+      const labels = predictions.map(p => p.label.split(',')[0]);
+      const data = predictions.map(p => p.value);
+      const colors = [
+        '#667eea', '#764ba2', '#48bb78', '#ed8936', '#f56565'
+      ];
+
+      analysisChart.data.labels = labels;
+      analysisChart.data.datasets[0].data = data;
+      analysisChart.data.datasets[0].backgroundColor = colors.slice(0, predictions.length);
+      analysisChart.update();
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+  </script>
+</body>
+</html>
