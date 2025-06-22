@@ -1,14 +1,512 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FACTDOC - AI Document Verification App</title>
-    <script type="module" crossorigin src="/assets/index-DPFmhguZ.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CSxc4a60.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affordact – Analyse IA Document</title>
+  <script src="https://cdn.jsdelivr.net/npm/ml5@latest/dist/ml5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      margin: 0;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+    }
+    
+    h1 {
+      color: #4a5568;
+      margin-bottom: 30px;
+      font-size: 2.5rem;
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    
+    #fileInput {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    
+    .file-input-label {
+      display: inline-block;
+      padding: 15px 30px;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .file-input-label:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    
+    #preview {
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      margin: 20px 0;
+    }
+    
+    .result-section {
+      background: #f8fafc;
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      border-left: 4px solid #667eea;
+    }
+    
+    .rating-section {
+      background: #fff5f5;
+      border-radius: 15px;
+      padding: 25px;
+      margin: 25px 0;
+      border: 2px solid #fed7d7;
+    }
+    
+    .rating-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+    
+    .rating-buttons button {
+      background: none;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: all 0.3s ease;
+    }
+    
+    .rating-buttons button:hover {
+      background: #667eea;
+      border-color: #667eea;
+      transform: scale(1.05);
+    }
+    
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin: 25px 0;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(45deg, #48bb78, #38a169);
+      color: white;
+      box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
+    }
+    
+    .btn-secondary {
+      background: linear-gradient(45deg, #4299e1, #3182ce);
+      color: white;
+      box-shadow: 0 4px 15px rgba(66, 153, 225, 0.4);
+    }
+    
+    .btn-danger {
+      background: linear-gradient(45deg, #f56565, #e53e3e);
+      color: white;
+      box-shadow: 0 4px 15px rgba(245, 101, 101, 0.4);
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    
+    .decision-result {
+      background: #f0fff4;
+      border: 2px solid #9ae6b4;
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      font-size: 1.1rem;
+    }
+    
+    .decision-success {
+      background: #f0fff4;
+      border-color: #9ae6b4;
+    }
+    
+    .decision-warning {
+      background: #fffbf0;
+      border-color: #f6e05e;
+    }
+    
+    .decision-error {
+      background: #fff5f5;
+      border-color: #feb2b2;
+    }
+    
+    .history-section {
+      background: #fafafa;
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 30px;
+    }
+    
+    #history {
+      text-align: left;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    #history li {
+      padding: 10px;
+      margin: 5px 0;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        margin: 10px;
+        padding: 20px;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+      
+      .action-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .rating-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📑 Affordact – Analyse IA de document</h1>
+    
+    <div class="file-input-wrapper">
+      <input type="file" id="fileInput" accept="image/*" onchange="handleFile()" />
+      <label for="fileInput" class="file-input-label">
+        📤 Choisir un document à analyser
+      </label>
+    </div>
+    
+    <div id="loadingIndicator" style="display:none;">
+      <div class="loading"></div>
+      <p>Analyse en cours...</p>
+    </div>
+    
+    <img id="preview" src="" width="300" style="display:none;" />
+    
+    <div id="aiResult" class="result-section" style="display:none;"></div>
+    <div id="ocrResult" class="result-section" style="display:none;"></div>
+
+    <div class="rating-section" id="ratingSection" style="display:none;">
+      <h3>⭐ Scorez la qualité du document</h3>
+      <div class="rating-buttons">
+        <button onclick="rate(1)">⭐</button>
+        <button onclick="rate(2)">⭐⭐</button>
+        <button onclick="rate(3)">⭐⭐⭐</button>
+        <button onclick="rate(4)">⭐⭐⭐⭐</button>
+        <button onclick="rate(5)">⭐⭐⭐⭐⭐</button>
+      </div>
+      <p id="rated"></p>
+      <button onclick="generateDecision()" class="btn btn-primary">📊 Obtenir mon éligibilité</button>
+      <div id="decision" class="decision-result" style="display:none;"></div>
+    </div>
+
+    <div class="action-buttons" id="actionButtons" style="display:none;">
+      <button onclick="generatePDF()" class="btn btn-secondary">📄 Générer le rapport PDF</button>
+      <button onclick="sendMail()" class="btn btn-secondary">📧 Envoyer à un conseiller</button>
+      <button onclick="clearHistory()" class="btn btn-danger">🗑️ Vider l'historique</button>
+    </div>
+
+    <div class="history-section">
+      <h2>🕓 Historique local :</h2>
+      <ul id="history"></ul>
+    </div>
+  </div>
+
+<script>
+let classifier;
+let isProcessing = false;
+
+window.onload = () => {
+  classifier = ml5.imageClassifier('MobileNet', () => {
+    console.log("MobileNet chargé");
+  });
+  loadHistory();
+};
+
+function handleFile() {
+  if (isProcessing) return;
+  
+  const input = document.getElementById('fileInput');
+  const file = input.files[0];
+  if (!file) return;
+
+  isProcessing = true;
+  document.getElementById('loadingIndicator').style.display = 'block';
+  document.getElementById('ratingSection').style.display = 'none';
+  document.getElementById('actionButtons').style.display = 'none';
+
+  const img = document.getElementById('preview');
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+
+  img.onload = () => {
+    // AI Classification
+    classifier.classify(img, (err, results) => {
+      if (err) {
+        document.getElementById('aiResult').innerHTML = '<b>❌ Erreur lors de l\'analyse IA</b>';
+        document.getElementById('aiResult').style.display = 'block';
+        return;
+      }
+      
+      const label = results[0].label;
+      const confidence = (results[0].confidence * 100).toFixed(2);
+      const aiText = `🤖 IA : ${label} (${confidence}% de confiance)`;
+      document.getElementById('aiResult').innerHTML = `<b>${aiText}</b>`;
+      document.getElementById('aiResult').style.display = 'block';
+      addToHistory(aiText);
+    });
+
+    // OCR Processing
+    Tesseract.recognize(img.src, 'fra+eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          document.getElementById('loadingIndicator').innerHTML = 
+            `<div class="loading"></div><p>Extraction du texte... ${Math.round(m.progress * 100)}%</p>`;
+        }
+      }
+    }).then(({ data: { text } }) => {
+      const txt = `📝 Texte détecté :\n${text}`;
+      document.getElementById('ocrResult').innerHTML = `<pre style="text-align: left; white-space: pre-wrap;">${txt}</pre>`;
+      document.getElementById('ocrResult').style.display = 'block';
+      addToHistory(txt);
+      
+      // Show rating section and action buttons
+      document.getElementById('ratingSection').style.display = 'block';
+      document.getElementById('actionButtons').style.display = 'block';
+      document.getElementById('loadingIndicator').style.display = 'none';
+      isProcessing = false;
+    }).catch(err => {
+      console.error('Erreur OCR:', err);
+      document.getElementById('ocrResult').innerHTML = '<b>❌ Erreur lors de l\'extraction du texte</b>';
+      document.getElementById('ocrResult').style.display = 'block';
+      document.getElementById('loadingIndicator').style.display = 'none';
+      isProcessing = false;
+    });
+  };
+}
+
+function generatePDF() {
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.text("Rapport Affordact – Analyse Document IA", 20, 30);
+    
+    // Date
+    doc.setFontSize(12);
+    doc.text(`Généré le : ${new Date().toLocaleString('fr-FR')}`, 20, 50);
+    
+    // AI Result
+    const aiText = document.getElementById('aiResult').innerText;
+    doc.setFontSize(14);
+    doc.text("Résultat de l'analyse IA :", 20, 70);
+    doc.setFontSize(12);
+    doc.text(aiText, 20, 85);
+    
+    // OCR Result
+    const ocrText = document.getElementById('ocrResult').innerText;
+    doc.setFontSize(14);
+    doc.text("Texte extrait :", 20, 110);
+    doc.setFontSize(10);
+    
+    // Split long text into multiple lines
+    const splitText = doc.splitTextToSize(ocrText, 170);
+    doc.text(splitText, 20, 125);
+    
+    // Decision if available
+    const decisionElement = document.getElementById('decision');
+    if (decisionElement.style.display !== 'none' && decisionElement.innerText) {
+      doc.setFontSize(14);
+      doc.text("Décision d'éligibilité :", 20, 200);
+      doc.setFontSize(12);
+      const decisionText = doc.splitTextToSize(decisionElement.innerText, 170);
+      doc.text(decisionText, 20, 215);
+    }
+    
+    doc.save("rapport_affordact.pdf");
+  } catch (error) {
+    console.error('Erreur génération PDF:', error);
+    alert('Erreur lors de la génération du PDF');
+  }
+}
+
+function sendMail() {
+  const subject = encodeURIComponent("Rapport Affordact – Résultat Analyse IA");
+  const aiResult = document.getElementById('aiResult').innerText;
+  const ocrResult = document.getElementById('ocrResult').innerText;
+  const decision = document.getElementById('decision').innerText;
+  
+  const body = encodeURIComponent(
+    `Bonjour,\n\nVeuillez trouver ci-dessous les résultats de l'analyse IA :\n\n${aiResult}\n\n${ocrResult}\n\n${decision}\n\nCordialement`
+  );
+  
+  window.location.href = `mailto:conseiller@affordact.eu?subject=${subject}&body=${body}`;
+}
+
+function addToHistory(entry) {
+  let history = JSON.parse(localStorage.getItem("affordactHistory") || "[]");
+  history.push({ time: new Date().toLocaleString('fr-FR'), entry });
+  localStorage.setItem("affordactHistory", JSON.stringify(history));
+  loadHistory();
+}
+
+function loadHistory() {
+  let history = JSON.parse(localStorage.getItem("affordactHistory") || "[]");
+  const list = document.getElementById("history");
+  list.innerHTML = "";
+  
+  if (history.length === 0) {
+    list.innerHTML = "<li>Aucun historique disponible</li>";
+    return;
+  }
+  
+  history.slice(-5).reverse().forEach(h => {
+    const li = document.createElement('li');
+    li.innerHTML = `<b>${h.time}</b>: ${h.entry.substring(0, 100)}${h.entry.length > 100 ? '...' : ''}`;
+    list.appendChild(li);
+  });
+}
+
+function clearHistory() {
+  if (confirm('Êtes-vous sûr de vouloir vider l\'historique ?')) {
+    localStorage.removeItem("affordactHistory");
+    localStorage.removeItem("affordactRating");
+    loadHistory();
+    document.getElementById('rated').innerText = '';
+  }
+}
+
+function rate(score) {
+  document.getElementById('rated').innerText = `Score attribué : ${score} étoile(s)`;
+  let ratingHistory = JSON.parse(localStorage.getItem("affordactRating") || "[]");
+  ratingHistory.push({ time: new Date().toLocaleString('fr-FR'), score });
+  localStorage.setItem("affordactRating", JSON.stringify(ratingHistory));
+  
+  // Highlight selected rating
+  const buttons = document.querySelectorAll('.rating-buttons button');
+  buttons.forEach((btn, index) => {
+    if (index < score) {
+      btn.style.background = '#667eea';
+      btn.style.borderColor = '#667eea';
+      btn.style.color = 'white';
+    } else {
+      btn.style.background = 'none';
+      btn.style.borderColor = '#e2e8f0';
+      btn.style.color = '#333';
+    }
+  });
+}
+
+function generateDecision() {
+  const aiText = document.getElementById('aiResult').innerText;
+  const ocrText = document.getElementById('ocrResult').innerText;
+  const ratingData = JSON.parse(localStorage.getItem("affordactRating") || "[]");
+  const lastRating = ratingData.length ? ratingData[ratingData.length - 1].score : 3;
+
+  let decision = "⏳ Analyse insuffisante";
+  let decisionClass = "decision-warning";
+  
+  if (aiText.toLowerCase().includes("document") || 
+      aiText.toLowerCase().includes("id") || 
+      aiText.toLowerCase().includes("card") ||
+      aiText.toLowerCase().includes("paper")) {
+    
+    if (ocrText.length > 30 && lastRating >= 3) {
+      decision = "✅ Document reconnu, texte lisible et validé. Éligible à une simulation.";
+      decisionClass = "decision-success";
+    } else if (ocrText.length > 15) {
+      decision = "🟡 Document partiellement lisible. Vérification complémentaire nécessaire.";
+      decisionClass = "decision-warning";
+    } else {
+      decision = "❌ Document illisible ou douteux. Non éligible sans justificatif complémentaire.";
+      decisionClass = "decision-error";
+    }
+  } else {
+    decision = "❌ Aucun document administratif reconnu.";
+    decisionClass = "decision-error";
+  }
+
+  const decisionElement = document.getElementById('decision');
+  decisionElement.innerHTML = `<strong>${decision}</strong>`;
+  decisionElement.className = `decision-result ${decisionClass}`;
+  decisionElement.style.display = 'block';
+  
+  addToHistory(`Décision: ${decision}`);
+}
+</script>
+</body>
 </html>
